@@ -1,55 +1,112 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>NearBay — See what's playing around you</title>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>NearBay</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
 <style>
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0a0a0a; color: #fff; min-height: 100vh; }
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#0a0a0a;color:#fff;height:100vh;overflow:hidden}
 
-  #login-screen { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; padding: 2rem; text-align: center; }
-  #login-screen h1 { font-size: 2.5rem; font-weight: 700; margin-bottom: 0.5rem; letter-spacing: -1px; }
-  #login-screen p { font-size: 1rem; color: #aaa; margin-bottom: 2rem; max-width: 300px; line-height: 1.6; }
-  .spotify-btn { background: #1DB954; color: #000; border: none; border-radius: 50px; padding: 14px 36px; font-size: 1rem; font-weight: 700; cursor: pointer; }
-  .spotify-btn:hover { background: #1ed760; }
+/* LOGIN */
+#login-screen{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;text-align:center;padding:2rem}
+#login-screen h1{font-size:2.8rem;font-weight:800;color:#1DB954;margin-bottom:.5rem}
+#login-screen p{color:#aaa;margin-bottom:2rem;max-width:280px;line-height:1.6}
+.spotify-btn{background:#1DB954;color:#000;border:none;border-radius:50px;padding:14px 36px;font-size:1rem;font-weight:700;cursor:pointer}
+.spotify-btn:hover{background:#1ed760}
 
-  #app-screen { display: none; flex-direction: column; min-height: 100vh; }
+/* APP */
+#app{display:none;flex-direction:column;height:100vh}
 
-  .topbar { display: flex; align-items: center; justify-content: space-between; padding: 1rem 1.5rem; border-bottom: 0.5px solid #222; }
-  .topbar h1 { font-size: 1.2rem; font-weight: 700; color: #1DB954; }
-  .now-playing { display: flex; align-items: center; gap: 10px; background: #111; border-radius: 50px; padding: 8px 14px; max-width: 220px; }
-  .dot { width: 8px; height: 8px; border-radius: 50%; background: #1DB954; flex-shrink: 0; animation: pulse 1.5s infinite; }
-  @keyframes pulse { 0%,100%{opacity:1}50%{opacity:0.3} }
-  .now-playing span { font-size: 12px; color: #ccc; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* TOPBAR */
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:.75rem 1rem;background:#111;border-bottom:1px solid #222;z-index:1000;position:relative}
+.topbar h1{font-size:1.1rem;font-weight:800;color:#1DB954}
+.now-playing{display:flex;align-items:center;gap:8px;background:#1a1a1a;border-radius:50px;padding:6px 12px;max-width:200px;cursor:pointer}
+.now-playing img{width:24px;height:24px;border-radius:4px;object-fit:cover}
+.now-playing-text{font-size:11px;color:#ccc;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:130px}
+.dot{width:7px;height:7px;border-radius:50%;background:#1DB954;flex-shrink:0;animation:pulse 1.5s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.3}}
+.avatar-btn{width:32px;height:32px;border-radius:50%;border:2px solid #1DB954;cursor:pointer;object-fit:cover;background:#222}
 
-  .stage { position: relative; width: 100%; height: calc(100vh - 120px); overflow: hidden; }
-  .ripple { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); border-radius: 50%; border: 1px solid rgba(29,185,84,0.15); pointer-events: none; animation: ripple 4s ease-out infinite; }
-  .ripple:nth-child(2){animation-delay:1.3s}
-  .ripple:nth-child(3){animation-delay:2.6s}
-  @keyframes ripple { 0%{width:40px;height:40px;opacity:0.8}100%{width:700px;height:700px;opacity:0} }
+/* MAP */
+#map{flex:1;z-index:1}
+.leaflet-container{background:#1a1a1a}
 
-  .you-marker { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); z-index: 10; display: flex; flex-direction: column; align-items: center; gap: 5px; }
-  .you-dot { width: 52px; height: 52px; border-radius: 50%; background: #1DB954; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; color: #000; border: 3px solid #fff; }
-  .you-label { font-size: 11px; color: #888; }
+/* BOTTOM NAV */
+.bottom-nav{display:flex;background:#111;border-top:1px solid #222;z-index:1000}
+.nav-btn{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:.6rem;cursor:pointer;color:#666;font-size:10px;gap:3px;border:none;background:transparent;transition:color .2s}
+.nav-btn.active{color:#1DB954}
+.nav-btn svg{width:20px;height:20px}
 
-  .bubble { position: absolute; display: flex; flex-direction: column; align-items: center; gap: 4px; cursor: pointer; transition: transform 0.2s; }
-  .bubble:hover { transform: scale(1.12); }
-  .bubble:hover .tooltip { opacity: 1; }
-  .bubble-circle { border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; color: #fff; font-size: 15px; }
-  .bubble-name { font-size: 10px; color: #888; white-space: nowrap; }
-  .tooltip { position: absolute; bottom: calc(100% + 10px); left: 50%; transform: translateX(-50%); background: #1a1a1a; border: 0.5px solid #333; border-radius: 12px; padding: 10px 14px; width: 170px; opacity: 0; transition: opacity 0.15s; z-index: 30; pointer-events: none; }
-  .tooltip .t-track { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .tooltip .t-artist { font-size: 12px; color: #aaa; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .tooltip .t-genre { display: inline-block; margin-top: 6px; font-size: 11px; background: rgba(29,185,84,0.15); color: #1DB954; padding: 2px 8px; border-radius: 20px; }
+/* PANELS */
+.panel{position:fixed;bottom:0;left:0;right:0;background:#111;border-radius:20px 20px 0 0;border-top:1px solid #222;z-index:2000;transform:translateY(100%);transition:transform .3s ease;max-height:80vh;overflow-y:auto}
+.panel.open{transform:translateY(0)}
+.panel-handle{width:40px;height:4px;background:#333;border-radius:2px;margin:12px auto 0}
+.panel-title{font-size:1rem;font-weight:700;padding:1rem 1rem .5rem;border-bottom:1px solid #222}
 
-  .bottombar { padding: 0.75rem 1.5rem; border-top: 0.5px solid #222; display: flex; align-items: center; justify-content: space-between; }
-  .bottombar .count { font-size: 13px; color: #888; }
-  .refresh-btn { background: transparent; border: 0.5px solid #333; color: #ccc; border-radius: 20px; padding: 6px 16px; font-size: 13px; cursor: pointer; }
-  .refresh-btn:hover { background: #1a1a1a; }
+/* PROFILE PANEL */
+.profile-header{display:flex;align-items:center;gap:1rem;padding:1rem}
+.profile-avatar{width:64px;height:64px;border-radius:50%;border:3px solid #1DB954;object-fit:cover}
+.profile-info h2{font-size:1.1rem;font-weight:700}
+.profile-info p{font-size:12px;color:#aaa;margin-top:2px}
+.profile-track{display:flex;align-items:center;gap:10px;padding:.75rem 1rem;background:#1a1a1a;margin:.5rem 1rem;border-radius:12px}
+.profile-track img{width:40px;height:40px;border-radius:8px;object-fit:cover}
+.profile-track-info .track-name{font-size:13px;font-weight:600}
+.profile-track-info .track-artist{font-size:12px;color:#aaa}
+.profile-actions{display:flex;gap:.75rem;padding:1rem}
+.btn{border:none;border-radius:50px;padding:10px 20px;font-size:13px;font-weight:600;cursor:pointer;flex:1;text-align:center}
+.btn-primary{background:#1DB954;color:#000}
+.btn-secondary{background:#222;color:#fff}
+.btn-primary:hover{background:#1ed760}
+.btn-secondary:hover{background:#2a2a2a}
 
-  .toast { position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%); background: #1a1a1a; border: 0.5px solid #333; border-radius: 8px; padding: 8px 18px; font-size: 12px; color: #ccc; opacity: 0; transition: opacity 0.3s; pointer-events: none; white-space: nowrap; z-index: 99; }
-  .toast.show { opacity: 1; }
+/* MESSAGES PANEL */
+.messages-list{padding:.5rem 1rem}
+.message-item{display:flex;align-items:center;gap:.75rem;padding:.75rem 0;border-bottom:1px solid #1a1a1a;cursor:pointer}
+.message-avatar{width:44px;height:44px;border-radius:50%;object-fit:cover;background:#222;flex-shrink:0}
+.message-info{flex:1;min-width:0}
+.message-name{font-size:13px;font-weight:600}
+.message-preview{font-size:12px;color:#aaa;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.message-time{font-size:11px;color:#555}
+
+/* CHAT PANEL */
+#chat-panel{display:none;position:fixed;inset:0;background:#111;z-index:3000;flex-direction:column}
+#chat-panel.open{display:flex}
+.chat-header{display:flex;align-items:center;gap:.75rem;padding:.75rem 1rem;border-bottom:1px solid #222;background:#111}
+.chat-back{background:none;border:none;color:#1DB954;font-size:1.2rem;cursor:pointer;padding:.25rem}
+.chat-avatar{width:36px;height:36px;border-radius:50%;object-fit:cover}
+.chat-name{font-size:14px;font-weight:600}
+.chat-messages{flex:1;overflow-y:auto;padding:1rem;display:flex;flex-direction:column;gap:.5rem}
+.msg{max-width:75%;padding:10px 14px;border-radius:18px;font-size:13px;line-height:1.5}
+.msg.sent{background:#1DB954;color:#000;align-self:flex-end;border-bottom-right-radius:4px}
+.msg.received{background:#222;color:#fff;align-self:flex-start;border-bottom-left-radius:4px}
+.chat-input-bar{display:flex;gap:.5rem;padding:.75rem 1rem;border-top:1px solid #222;background:#111}
+.chat-input{flex:1;background:#222;border:none;border-radius:50px;padding:10px 16px;color:#fff;font-size:13px;outline:none}
+.chat-send{background:#1DB954;border:none;border-radius:50%;width:38px;height:38px;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0}
+
+/* FRIENDS PANEL */
+.friends-list{padding:.5rem 1rem}
+.friend-item{display:flex;align-items:center;gap:.75rem;padding:.75rem 0;border-bottom:1px solid #1a1a1a}
+.friend-avatar{width:44px;height:44px;border-radius:50%;object-fit:cover;background:#222}
+.friend-info{flex:1}
+.friend-name{font-size:13px;font-weight:600}
+.friend-track{font-size:12px;color:#aaa}
+.friend-action{background:#222;border:none;color:#1DB954;border-radius:20px;padding:6px 14px;font-size:12px;cursor:pointer}
+
+/* MAP MARKERS */
+.map-marker{width:48px;height:48px;border-radius:50%;border:3px solid #1DB954;overflow:hidden;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.5)}
+.map-marker img{width:100%;height:100%;object-fit:cover}
+.you-marker-div{width:48px;height:48px;border-radius:50%;border:3px solid #fff;background:#1DB954;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:16px;color:#000;box-shadow:0 2px 12px rgba(29,185,84,0.5)}
+
+/* TOAST */
+.toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#1a1a1a;border:1px solid #333;border-radius:8px;padding:8px 18px;font-size:12px;color:#ccc;opacity:0;transition:opacity .3s;pointer-events:none;white-space:nowrap;z-index:9999}
+.toast.show{opacity:1}
+
+/* EMPTY STATE */
+.empty-state{text-align:center;padding:3rem 1rem;color:#555}
+.empty-state p{margin-top:.5rem;font-size:13px}
 </style>
 </head>
 <body>
@@ -60,26 +117,117 @@
   <button class="spotify-btn" onclick="loginWithSpotify()">Connect with Spotify</button>
 </div>
 
-<div id="app-screen">
+<div id="app">
   <div class="topbar">
     <h1>NearBay</h1>
-    <div class="now-playing">
-      <div class="dot"></div>
-      <span id="now-playing-text">Loading...</span>
+    <div class="now-playing" onclick="openPanel('profile-panel')">
+      <img id="album-art" src="" style="display:none"/>
+      <div class="dot" id="playing-dot"></div>
+      <span class="now-playing-text" id="now-playing-text">Loading...</span>
+    </div>
+    <img class="avatar-btn" id="my-avatar" src="" onclick="openPanel('profile-panel')" onerror="this.src='https://via.placeholder.com/32'"/>
+  </div>
+
+  <div id="map"></div>
+
+  <div class="bottom-nav">
+    <button class="nav-btn active" onclick="setTab('map',this)">
+      <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/></svg>
+      Map
+    </button>
+    <button class="nav-btn" onclick="setTab('friends',this)">
+      <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+      Friends
+    </button>
+    <button class="nav-btn" onclick="setTab('messages',this)">
+      <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+      Messages
+    </button>
+  </div>
+</div>
+
+<!-- PROFILE PANEL (my own) -->
+<div class="panel" id="profile-panel">
+  <div class="panel-handle"></div>
+  <div class="panel-title">My Profile</div>
+  <div class="profile-header">
+    <img class="profile-avatar" id="my-profile-avatar" src="" onerror="this.src='https://via.placeholder.com/64'"/>
+    <div class="profile-info">
+      <h2 id="my-profile-name">Loading...</h2>
+      <p id="my-profile-followers">Spotify user</p>
     </div>
   </div>
-  <div class="stage" id="stage">
-    <div class="ripple"></div>
-    <div class="ripple"></div>
-    <div class="ripple"></div>
-    <div class="you-marker">
-      <div class="you-dot" id="you-initial">Y</div>
-      <div class="you-label">You</div>
+  <div class="profile-track" id="my-profile-track" style="display:none">
+    <img id="my-profile-art" src="" style="width:40px;height:40px;border-radius:8px"/>
+    <div class="profile-track-info">
+      <div class="track-name" id="my-profile-track-name"></div>
+      <div class="track-artist" id="my-profile-track-artist"></div>
     </div>
   </div>
-  <div class="bottombar">
-    <span class="count" id="nearby-count">Scanning nearby listeners...</span>
-    <button class="refresh-btn" onclick="refreshListeners()">Refresh</button>
+  <div class="profile-actions">
+    <button class="btn btn-secondary" onclick="closePanel('profile-panel')">Close</button>
+  </div>
+</div>
+
+<!-- OTHER USER PROFILE PANEL -->
+<div class="panel" id="user-panel">
+  <div class="panel-handle"></div>
+  <div class="panel-title">Profile</div>
+  <div class="profile-header">
+    <img class="profile-avatar" id="user-avatar" src="" onerror="this.src='https://via.placeholder.com/64'"/>
+    <div class="profile-info">
+      <h2 id="user-name">User</h2>
+      <p id="user-subtitle">Listening nearby</p>
+    </div>
+  </div>
+  <div class="profile-track" id="user-track-section">
+    <img id="user-album-art" src="" style="width:40px;height:40px;border-radius:8px"/>
+    <div class="profile-track-info">
+      <div class="track-name" id="user-track-name"></div>
+      <div class="track-artist" id="user-track-artist"></div>
+    </div>
+  </div>
+  <div class="profile-actions">
+    <button class="btn btn-primary" id="add-friend-btn" onclick="addFriend()">Add Friend</button>
+    <button class="btn btn-secondary" onclick="openChat()">Message</button>
+  </div>
+</div>
+
+<!-- FRIENDS PANEL -->
+<div class="panel" id="friends-panel">
+  <div class="panel-handle"></div>
+  <div class="panel-title">Friends</div>
+  <div class="friends-list" id="friends-list">
+    <div class="empty-state">
+      <p>No friends yet — tap someone on the map and add them!</p>
+    </div>
+  </div>
+</div>
+
+<!-- MESSAGES PANEL -->
+<div class="panel" id="messages-panel">
+  <div class="panel-handle"></div>
+  <div class="panel-title">Messages</div>
+  <div class="messages-list" id="messages-list">
+    <div class="empty-state">
+      <p>No messages yet — tap someone on the map to start a chat!</p>
+    </div>
+  </div>
+</div>
+
+<!-- CHAT PANEL -->
+<div id="chat-panel">
+  <div class="chat-header">
+    <button class="chat-back" onclick="closeChat()">←</button>
+    <img class="chat-avatar" id="chat-avatar" src="" onerror="this.src='https://via.placeholder.com/36'"/>
+    <span class="chat-name" id="chat-name"></span>
+  </div>
+  <div class="chat-messages" id="chat-messages"></div>
+  <div class="chat-input-bar">
+    <input class="chat-input" id="chat-input" placeholder="Type a message..." onkeydown="if(event.key==='Enter')sendMessage()"/>
+    <button class="chat-send" onclick="sendMessage()">
+      <svg width="16" height="16" fill="none" stroke="#000" stroke-width="2.5" viewBox="0 0 24 24"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+    </button>
   </div>
 </div>
 
@@ -89,164 +237,288 @@
 const CLIENT_ID = 'b8e5aded95eb41fe9e56fadece750d3b';
 const REDIRECT_URI = 'https://nihadeyvazli.github.io/NearBay';
 const SCOPES = 'user-read-currently-playing user-read-playback-state user-read-private';
+const SUPABASE_URL = 'https://vctsnemocjzqfuedvzjf.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZjdHNuZW1vY2p6cWZ1ZWR2empmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc4MDg4MzUsImV4cCI6MjA5MzM4NDgzNX0.TkZChWaBEmIReThnxbb8HRoaVR5kLsCOYC1YGL9D3w0';
 
-const DEMO_NEARBY = [
-  { name: 'Ayla',  track: 'Blinding Lights',  artist: 'The Weeknd',       genre: 'Pop',     color: '#E91E63', size: 50 },
-  { name: 'Rauf',  track: 'Ay',               artist: 'Miyagi & Andy',    genre: 'Hip-hop', color: '#5865F2', size: 44 },
-  { name: 'Leyla', track: 'As It Was',         artist: 'Harry Styles',     genre: 'Indie',   color: '#FF9800', size: 48 },
-  { name: 'Elvin', track: 'Believer',          artist: 'Imagine Dragons',  genre: 'Rock',    color: '#00BCD4', size: 54 },
-  { name: 'Nigar', track: 'Levitating',        artist: 'Dua Lipa',         genre: 'Dance',   color: '#9C27B0', size: 42 },
-  { name: 'Kamil', track: 'Stay',              artist: 'Justin Bieber',    genre: 'R&B',     color: '#F44336', size: 46 },
-];
+let map, myUser = null, currentChatUser = null, markers = {};
 
+// ── SUPABASE ──────────────────────────────────────────────
+async function sb(method, path, body) {
+  const res = await fetch(SUPABASE_URL + '/rest/v1/' + path, {
+    method,
+    headers: {
+      'apikey': SUPABASE_KEY,
+      'Authorization': 'Bearer ' + SUPABASE_KEY,
+      'Content-Type': 'application/json',
+      'Prefer': method === 'POST' ? 'resolution=merge-duplicates' : ''
+    },
+    body: body ? JSON.stringify(body) : undefined
+  });
+  if (res.status === 204) return null;
+  return res.json();
+}
+
+// ── SPOTIFY AUTH (PKCE) ───────────────────────────────────
+function generateRandom(n) {
+  const c = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  return Array.from(crypto.getRandomValues(new Uint8Array(n))).map(b => c[b % c.length]).join('');
+}
+async function codeChallenge(v) {
+  const d = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(v));
+  return btoa(String.fromCharCode(...new Uint8Array(d))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+}
+async function loginWithSpotify() {
+  const v = generateRandom(64);
+  localStorage.setItem('pkce_v', v);
+  const ch = await codeChallenge(v);
+  const p = new URLSearchParams({ client_id: CLIENT_ID, response_type: 'code', redirect_uri: REDIRECT_URI, scope: SCOPES, code_challenge_method: 'S256', code_challenge: ch });
+  location.href = 'https://accounts.spotify.com/authorize?' + p;
+}
+async function getToken(code) {
+  const res = await fetch('https://accounts.spotify.com/api/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({ client_id: CLIENT_ID, grant_type: 'authorization_code', code, redirect_uri: REDIRECT_URI, code_verifier: localStorage.getItem('pkce_v') })
+  });
+  const d = await res.json();
+  if (d.access_token) {
+    localStorage.setItem('sp_token', d.access_token);
+    localStorage.setItem('sp_expiry', Date.now() + d.expires_in * 1000);
+    localStorage.removeItem('pkce_v');
+  }
+  return d.access_token;
+}
+function storedToken() {
+  const t = localStorage.getItem('sp_token'), e = localStorage.getItem('sp_expiry');
+  return t && e && Date.now() < +e ? t : null;
+}
+async function spotifyFetch(path, token) {
+  try {
+    const r = await fetch('https://api.spotify.com/v1' + path, { headers: { Authorization: 'Bearer ' + token } });
+    if (r.status === 204 || r.status === 401) return null;
+    return r.json();
+  } catch { return null; }
+}
+
+// ── MAP ───────────────────────────────────────────────────
+function initMap(lat, lng) {
+  map = L.map('map', { zoomControl: false }).setView([lat, lng], 15);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    attribution: '©OpenStreetMap ©Carto', maxZoom: 19
+  }).addTo(map);
+  L.control.zoom({ position: 'topright' }).addTo(map);
+
+  const youIcon = L.divIcon({
+    className: '',
+    html: `<div class="you-marker-div">${(myUser?.display_name||'Y')[0].toUpperCase()}</div>`,
+    iconSize: [48, 48], iconAnchor: [24, 24]
+  });
+  L.marker([lat, lng], { icon: youIcon }).addTo(map).bindPopup('You');
+}
+
+function addUserMarker(user) {
+  if (!map || !user.lat || !user.lng) return;
+  if (markers[user.id]) { map.removeLayer(markers[user.id]); }
+  const art = user.album_art || 'https://via.placeholder.com/48';
+  const icon = L.divIcon({
+    className: '',
+    html: `<div class="map-marker"><img src="${art}" onerror="this.src='https://via.placeholder.com/48'"/></div>`,
+    iconSize: [48, 48], iconAnchor: [24, 24]
+  });
+  const marker = L.marker([user.lat, user.lng], { icon }).addTo(map);
+  marker.on('click', () => openUserProfile(user));
+  markers[user.id] = marker;
+}
+
+// ── NEARBY USERS ──────────────────────────────────────────
+async function loadNearbyUsers(lat, lng) {
+  const latD = 0.05, lngD = 0.05;
+  const data = await sb('GET', `users?lat=gte.${lat-latD}&lat=lte.${lat+latD}&lng=gte.${lng-lngD}&lng=lte.${lng+lngD}&limit=50`);
+  if (!data) return;
+  data.forEach(u => { if (u.id !== myUser?.id) addUserMarker(u); });
+}
+
+// ── PROFILE ───────────────────────────────────────────────
+function openUserProfile(user) {
+  currentChatUser = user;
+  document.getElementById('user-avatar').src = user.avatar_url || 'https://via.placeholder.com/64';
+  document.getElementById('user-name').textContent = user.display_name || 'Unknown';
+  document.getElementById('user-subtitle').textContent = 'Listening nearby';
+  document.getElementById('user-album-art').src = user.album_art || 'https://via.placeholder.com/40';
+  document.getElementById('user-track-name').textContent = user.current_track || 'Not playing';
+  document.getElementById('user-track-artist').textContent = user.current_artist || '';
+  openPanel('user-panel');
+}
+
+// ── FRIENDS ───────────────────────────────────────────────
+async function addFriend() {
+  if (!myUser || !currentChatUser) return;
+  await sb('POST', 'friends', { user_id: myUser.id, friend_id: currentChatUser.id, status: 'pending' });
+  toast('Friend request sent! 👋');
+  document.getElementById('add-friend-btn').textContent = 'Request Sent';
+  document.getElementById('add-friend-btn').disabled = true;
+}
+
+async function loadFriends() {
+  if (!myUser) return;
+  const data = await sb('GET', `friends?user_id=eq.${myUser.id}&status=eq.accepted`);
+  const list = document.getElementById('friends-list');
+  if (!data || data.length === 0) {
+    list.innerHTML = '<div class="empty-state"><p>No friends yet — tap someone on the map and add them!</p></div>';
+    return;
+  }
+  list.innerHTML = data.map(f => `
+    <div class="friend-item">
+      <img class="friend-avatar" src="https://via.placeholder.com/44"/>
+      <div class="friend-info">
+        <div class="friend-name">${f.friend_id}</div>
+        <div class="friend-track">Friend</div>
+      </div>
+      <button class="friend-action" onclick="">Message</button>
+    </div>`).join('');
+}
+
+// ── MESSAGES ──────────────────────────────────────────────
+function openChat() {
+  closePanel('user-panel');
+  if (!currentChatUser) return;
+  document.getElementById('chat-avatar').src = currentChatUser.avatar_url || 'https://via.placeholder.com/36';
+  document.getElementById('chat-name').textContent = currentChatUser.display_name || 'User';
+  document.getElementById('chat-panel').classList.add('open');
+  loadChatMessages();
+}
+
+function closeChat() {
+  document.getElementById('chat-panel').classList.remove('open');
+}
+
+async function loadChatMessages() {
+  if (!myUser || !currentChatUser) return;
+  const data = await sb('GET', `messages?or=(and(sender_id.eq.${myUser.id},receiver_id.eq.${currentChatUser.id}),and(sender_id.eq.${currentChatUser.id},receiver_id.eq.${myUser.id}))&order=created_at.asc&limit=50`);
+  const container = document.getElementById('chat-messages');
+  if (!data || data.length === 0) {
+    container.innerHTML = '<div style="text-align:center;color:#555;padding:2rem;font-size:13px">Say hello! 👋</div>';
+    return;
+  }
+  container.innerHTML = data.map(m => `
+    <div class="msg ${m.sender_id === myUser.id ? 'sent' : 'received'}">${m.content}</div>`).join('');
+  container.scrollTop = container.scrollHeight;
+}
+
+async function sendMessage() {
+  const input = document.getElementById('chat-input');
+  const content = input.value.trim();
+  if (!content || !myUser || !currentChatUser) return;
+  input.value = '';
+  await sb('POST', 'messages', { sender_id: myUser.id, receiver_id: currentChatUser.id, content });
+  loadChatMessages();
+}
+
+// ── UI HELPERS ────────────────────────────────────────────
+function openPanel(id) { document.getElementById(id).classList.add('open'); }
+function closePanel(id) { document.getElementById(id).classList.remove('open'); }
 function toast(msg, ms = 2500) {
   const el = document.getElementById('toast');
   el.textContent = msg;
   el.classList.add('show');
   setTimeout(() => el.classList.remove('show'), ms);
 }
-
-function generateRandom(length) {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-  return Array.from(crypto.getRandomValues(new Uint8Array(length))).map(b => chars[b % chars.length]).join('');
+function setTab(tab, btn) {
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  if (tab === 'friends') { openPanel('friends-panel'); loadFriends(); }
+  else if (tab === 'messages') openPanel('messages-panel');
+  else { closePanel('friends-panel'); closePanel('messages-panel'); closePanel('user-panel'); }
 }
 
-async function generateCodeChallenge(verifier) {
-  const data = new TextEncoder().encode(verifier);
-  const digest = await crypto.subtle.digest('SHA-256', data);
-  return btoa(String.fromCharCode(...new Uint8Array(digest)))
-    .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-}
+// Close panels on background click
+document.querySelectorAll('.panel').forEach(p => {
+  p.addEventListener('click', e => { if (e.target === p) p.classList.remove('open'); });
+});
 
-async function loginWithSpotify() {
-  const verifier = generateRandom(64);
-  const challenge = await generateCodeChallenge(verifier);
-  localStorage.setItem('pkce_verifier', verifier);
-  const params = new URLSearchParams({
-    client_id: CLIENT_ID,
-    response_type: 'code',
-    redirect_uri: REDIRECT_URI,
-    scope: SCOPES,
-    code_challenge_method: 'S256',
-    code_challenge: challenge,
-  });
-  window.location.href = 'https://accounts.spotify.com/authorize?' + params.toString();
-}
-
-async function exchangeCodeForToken(code) {
-  const verifier = localStorage.getItem('pkce_verifier');
-  const res = await fetch('https://accounts.spotify.com/api/token', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({
-      client_id: CLIENT_ID,
-      grant_type: 'authorization_code',
-      code,
-      redirect_uri: REDIRECT_URI,
-      code_verifier: verifier,
-    }).toString(),
-  });
-  const data = await res.json();
-  if (data.access_token) {
-    localStorage.setItem('spotify_token', data.access_token);
-    localStorage.setItem('spotify_token_expiry', Date.now() + data.expires_in * 1000);
-    localStorage.removeItem('pkce_verifier');
-  }
-  return data.access_token || null;
-}
-
-function getStoredToken() {
-  const token = localStorage.getItem('spotify_token');
-  const expiry = localStorage.getItem('spotify_token_expiry');
-  if (token && expiry && Date.now() < parseInt(expiry)) return token;
-  return null;
-}
-
-async function fetchJSON(url, token) {
-  try {
-    const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
-    if (res.status === 204 || res.status === 401) return null;
-    return await res.json();
-  } catch { return null; }
-}
-
-function placeBubbles(list) {
-  document.querySelectorAll('.bubble').forEach(b => b.remove());
-  const stage = document.getElementById('stage');
-  const W = stage.offsetWidth, H = stage.offsetHeight;
-  list.forEach((p, i) => {
-    const angle = (i / list.length) * 360 + (Math.random() * 24 - 12);
-    const r = 100 + Math.random() * 80;
-    const rad = angle * Math.PI / 180;
-    const s = p.size || 48;
-    const x = W / 2 + r * Math.cos(rad) - s / 2;
-    const y = H / 2 + r * Math.sin(rad) - s / 2;
-    const div = document.createElement('div');
-    div.className = 'bubble';
-    div.style.cssText = `left:${x}px;top:${y}px`;
-    div.innerHTML = `
-      <div class="tooltip">
-        <div class="t-track">${p.track}</div>
-        <div class="t-artist">${p.artist}</div>
-        <span class="t-genre">${p.genre}</span>
-      </div>
-      <div class="bubble-circle" style="width:${s}px;height:${s}px;background:${p.color}">${p.name[0]}</div>
-      <div class="bubble-name">${p.name}</div>`;
-    stage.appendChild(div);
-  });
-  document.getElementById('nearby-count').textContent = `${list.length} people listening nearby`;
-}
-
-function refreshListeners() {
-  toast('Scanning nearby...');
-  setTimeout(() => { placeBubbles(DEMO_NEARBY); toast('Updated!'); }, 1000);
-}
-
+// ── INIT ──────────────────────────────────────────────────
 async function initApp(token) {
   document.getElementById('login-screen').style.display = 'none';
-  document.getElementById('app-screen').style.display = 'flex';
+  document.getElementById('app').style.display = 'flex';
 
-  const profile = await fetchJSON('https://api.spotify.com/v1/me', token);
-  if (profile?.display_name) {
-    document.getElementById('you-initial').textContent = profile.display_name[0].toUpperCase();
-  }
+  const profile = await spotifyFetch('/me', token);
+  if (!profile) { toast('Spotify auth expired — please reconnect'); return; }
 
-  const track = await fetchJSON('https://api.spotify.com/v1/me/player/currently-playing', token);
-  if (track?.item) {
-    document.getElementById('now-playing-text').textContent =
-      `${track.item.name} — ${track.item.artists.map(a => a.name).join(', ')}`;
-  } else {
-    document.getElementById('now-playing-text').textContent = 'Nothing playing';
-  }
+  myUser = {
+    id: profile.id,
+    display_name: profile.display_name,
+    avatar_url: profile.images?.[0]?.url || '',
+    current_track: null, current_artist: null, album_art: null,
+    lat: null, lng: null
+  };
 
-  navigator.geolocation?.getCurrentPosition(
-    () => toast('Location found — scanning nearby', 2500),
-    () => toast('Location off — showing demo data', 3000)
-  );
+  document.getElementById('my-profile-name').textContent = profile.display_name;
+  document.getElementById('my-profile-avatar').src = profile.images?.[0]?.url || 'https://via.placeholder.com/64';
+  document.getElementById('my-avatar').src = profile.images?.[0]?.url || 'https://via.placeholder.com/32';
 
-  setTimeout(() => placeBubbles(DEMO_NEARBY), 800);
+  // Get location
+  navigator.geolocation.getCurrentPosition(async pos => {
+    const lat = pos.coords.latitude, lng = pos.coords.longitude;
+    myUser.lat = lat; myUser.lng = lng;
+    initMap(lat, lng);
 
-  setInterval(async () => {
-    const t = await fetchJSON('https://api.spotify.com/v1/me/player/currently-playing', token);
-    if (t?.item) {
-      document.getElementById('now-playing-text').textContent =
-        `${t.item.name} — ${t.item.artists.map(a => a.name).join(', ')}`;
+    // Get current track
+    const track = await spotifyFetch('/me/player/currently-playing', token);
+    if (track?.item) {
+      myUser.current_track = track.item.name;
+      myUser.current_artist = track.item.artists.map(a => a.name).join(', ');
+      myUser.album_art = track.item.album?.images?.[0]?.url || '';
+      document.getElementById('now-playing-text').textContent = `${myUser.current_track} — ${myUser.current_artist}`;
+      const art = document.getElementById('album-art');
+      art.src = myUser.album_art;
+      art.style.display = 'block';
+      document.getElementById('playing-dot').style.display = 'none';
+      document.getElementById('my-profile-track').style.display = 'flex';
+      document.getElementById('my-profile-art').src = myUser.album_art;
+      document.getElementById('my-profile-track-name').textContent = myUser.current_track;
+      document.getElementById('my-profile-track-artist').textContent = myUser.current_artist;
+    } else {
+      document.getElementById('now-playing-text').textContent = 'Nothing playing';
     }
-  }, 30000);
+
+    // Save to Supabase
+    await sb('POST', 'users', myUser);
+    toast('📍 Sharing your location & music');
+
+    // Load nearby
+    await loadNearbyUsers(lat, lng);
+
+    // Refresh every 30s
+    setInterval(async () => {
+      const t = await spotifyFetch('/me/player/currently-playing', token);
+      if (t?.item) {
+        myUser.current_track = t.item.name;
+        myUser.current_artist = t.item.artists.map(a => a.name).join(', ');
+        myUser.album_art = t.item.album?.images?.[0]?.url || '';
+        document.getElementById('now-playing-text').textContent = `${myUser.current_track} — ${myUser.current_artist}`;
+        document.getElementById('album-art').src = myUser.album_art;
+        await sb('POST', 'users', myUser);
+      }
+      loadNearbyUsers(lat, lng);
+    }, 30000);
+
+  }, () => {
+    toast('Location needed to show nearby listeners');
+    initMap(40.4093, 49.8671); // Baku default
+  });
 }
 
 window.addEventListener('load', async () => {
-  const params = new URLSearchParams(window.location.search);
+  const params = new URLSearchParams(location.search);
   const code = params.get('code');
   if (code) {
-    window.history.replaceState({}, '', REDIRECT_URI);
-    toast('Connecting to Spotify...', 3000);
-    const token = await exchangeCodeForToken(code);
+    history.replaceState({}, '', REDIRECT_URI);
+    toast('Connecting...', 3000);
+    const token = await getToken(code);
     if (token) initApp(token);
-    else toast('Auth failed — please try again');
     return;
   }
-  const stored = getStoredToken();
+  const stored = storedToken();
   if (stored) initApp(stored);
 });
 </script>
