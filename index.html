@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>NearBay — See what's playing around you</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0a0a0a; color: #fff; min-height: 100vh; }
+
+  #login-screen { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; padding: 2rem; text-align: center; }
+  #login-screen h1 { font-size: 2.5rem; font-weight: 700; margin-bottom: 0.5rem; letter-spacing: -1px; }
+  #login-screen p { font-size: 1rem; color: #aaa; margin-bottom: 2rem; max-width: 300px; line-height: 1.6; }
+  .spotify-btn { background: #1DB954; color: #000; border: none; border-radius: 50px; padding: 14px 36px; font-size: 1rem; font-weight: 700; cursor: pointer; }
+  .spotify-btn:hover { background: #1ed760; }
+
+  #app-screen { display: none; flex-direction: column; min-height: 100vh; }
+
+  .topbar { display: flex; align-items: center; justify-content: space-between; padding: 1rem 1.5rem; border-bottom: 0.5px solid #222; }
+  .topbar h1 { font-size: 1.2rem; font-weight: 700; color: #1DB954; }
+  .now-playing { display: flex; align-items: center; gap: 10px; background: #111; border-radius: 50px; padding: 8px 14px; max-width: 220px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: #1DB954; flex-shrink: 0; animation: pulse 1.5s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1}50%{opacity:0.3} }
+  .now-playing span { font-size: 12px; color: #ccc; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  .stage { position: relative; width: 100%; height: calc(100vh - 120px); overflow: hidden; }
+  .ripple { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); border-radius: 50%; border: 1px solid rgba(29,185,84,0.15); pointer-events: none; animation: ripple 4s ease-out infinite; }
+  .ripple:nth-child(2){animation-delay:1.3s}
+  .ripple:nth-child(3){animation-delay:2.6s}
+  @keyframes ripple { 0%{width:40px;height:40px;opacity:0.8}100%{width:700px;height:700px;opacity:0} }
+
+  .you-marker { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); z-index: 10; display: flex; flex-direction: column; align-items: center; gap: 5px; }
+  .you-dot { width: 52px; height: 52px; border-radius: 50%; background: #1DB954; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; color: #000; border: 3px solid #fff; }
+  .you-label { font-size: 11px; color: #888; }
+
+  .bubble { position: absolute; display: flex; flex-direction: column; align-items: center; gap: 4px; cursor: pointer; transition: transform 0.2s; }
+  .bubble:hover { transform: scale(1.12); }
+  .bubble:hover .tooltip { opacity: 1; }
+  .bubble-circle { border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; color: #fff; font-size: 15px; }
+  .bubble-name { font-size: 10px; color: #888; white-space: nowrap; }
+  .tooltip { position: absolute; bottom: calc(100% + 10px); left: 50%; transform: translateX(-50%); background: #1a1a1a; border: 0.5px solid #333; border-radius: 12px; padding: 10px 14px; width: 170px; opacity: 0; transition: opacity 0.15s; z-index: 30; pointer-events: none; }
+  .tooltip .t-track { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .tooltip .t-artist { font-size: 12px; color: #aaa; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .tooltip .t-genre { display: inline-block; margin-top: 6px; font-size: 11px; background: rgba(29,185,84,0.15); color: #1DB954; padding: 2px 8px; border-radius: 20px; }
+
+  .bottombar { padding: 0.75rem 1.5rem; border-top: 0.5px solid #222; display: flex; align-items: center; justify-content: space-between; }
+  .bottombar .count { font-size: 13px; color: #888; }
+  .refresh-btn { background: transparent; border: 0.5px solid #333; color: #ccc; border-radius: 20px; padding: 6px 16px; font-size: 13px; cursor: pointer; }
+  .refresh-btn:hover { background: #1a1a1a; }
+
+  .toast { position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%); background: #1a1a1a; border: 0.5px solid #333; border-radius: 8px; padding: 8px 18px; font-size: 12px; color: #ccc; opacity: 0; transition: opacity 0.3s; pointer-events: none; white-space: nowrap; z-index: 99; }
+  .toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+
+<div id="login-screen">
+  <h1>NearBay</h1>
+  <p>Discover what people around you are listening to right now.</p>
+  <button class="spotify-btn" onclick="loginWithSpotify()">Connect with Spotify</button>
+</div>
+
+<div id="app-screen">
+  <div class="topbar">
+    <h1>NearBay</h1>
+    <div class="now-playing">
+      <div class="dot"></div>
+      <span id="now-playing-text">Loading...</span>
+    </div>
+  </div>
+  <div class="stage" id="stage">
+    <div class="ripple"></div>
+    <div class="ripple"></div>
+    <div class="ripple"></div>
+    <div class="you-marker">
+      <div class="you-dot" id="you-initial">Y</div>
+      <div class="you-label">You</div>
+    </div>
+  </div>
+  <div class="bottombar">
+    <span class="count" id="nearby-count">Scanning nearby listeners...</span>
+    <button class="refresh-btn" onclick="refreshListeners()">Refresh</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const CLIENT_ID = 'b8e5aded95eb41fe9e56fadece750d3b';
+const REDIRECT_URI = 'https://nihadeyvazli.github.io/NearBay';
+const SCOPES = 'user-read-currently-playing user-read-playback-state user-read-private';
+
+const DEMO_NEARBY = [
+  { name: 'Ayla',  track: 'Blinding Lights',  artist: 'The Weeknd',       genre: 'Pop',     color: '#E91E63', size: 50 },
+  { name: 'Rauf',  track: 'Ay',               artist: 'Miyagi & Andy',    genre: 'Hip-hop', color: '#5865F2', size: 44 },
+  { name: 'Leyla', track: 'As It Was',         artist: 'Harry Styles',     genre: 'Indie',   color: '#FF9800', size: 48 },
+  { name: 'Elvin', track: 'Believer',          artist: 'Imagine Dragons',  genre: 'Rock',    color: '#00BCD4', size: 54 },
+  { name: 'Nigar', track: 'Levitating',        artist: 'Dua Lipa',         genre: 'Dance',   color: '#9C27B0', size: 42 },
+  { name: 'Kamil', track: 'Stay',              artist: 'Justin Bieber',    genre: 'R&B',     color: '#F44336', size: 46 },
+];
+
+function toast(msg, ms = 2500) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), ms);
+}
+
+function generateRandom(length) {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  return Array.from(crypto.getRandomValues(new Uint8Array(length))).map(b => chars[b % chars.length]).join('');
+}
+
+async function generateCodeChallenge(verifier) {
+  const data = new TextEncoder().encode(verifier);
+  const digest = await crypto.subtle.digest('SHA-256', data);
+  return btoa(String.fromCharCode(...new Uint8Array(digest)))
+    .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+async function loginWithSpotify() {
+  const verifier = generateRandom(64);
+  const challenge = await generateCodeChallenge(verifier);
+  localStorage.setItem('pkce_verifier', verifier);
+  const params = new URLSearchParams({
+    client_id: CLIENT_ID,
+    response_type: 'code',
+    redirect_uri: REDIRECT_URI,
+    scope: SCOPES,
+    code_challenge_method: 'S256',
+    code_challenge: challenge,
+  });
+  window.location.href = 'https://accounts.spotify.com/authorize?' + params.toString();
+}
+
+async function exchangeCodeForToken(code) {
+  const verifier = localStorage.getItem('pkce_verifier');
+  const res = await fetch('https://accounts.spotify.com/api/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      client_id: CLIENT_ID,
+      grant_type: 'authorization_code',
+      code,
+      redirect_uri: REDIRECT_URI,
+      code_verifier: verifier,
+    }).toString(),
+  });
+  const data = await res.json();
+  if (data.access_token) {
+    localStorage.setItem('spotify_token', data.access_token);
+    localStorage.setItem('spotify_token_expiry', Date.now() + data.expires_in * 1000);
+    localStorage.removeItem('pkce_verifier');
+  }
+  return data.access_token || null;
+}
+
+function getStoredToken() {
+  const token = localStorage.getItem('spotify_token');
+  const expiry = localStorage.getItem('spotify_token_expiry');
+  if (token && expiry && Date.now() < parseInt(expiry)) return token;
+  return null;
+}
+
+async function fetchJSON(url, token) {
+  try {
+    const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+    if (res.status === 204 || res.status === 401) return null;
+    return await res.json();
+  } catch { return null; }
+}
+
+function placeBubbles(list) {
+  document.querySelectorAll('.bubble').forEach(b => b.remove());
+  const stage = document.getElementById('stage');
+  const W = stage.offsetWidth, H = stage.offsetHeight;
+  list.forEach((p, i) => {
+    const angle = (i / list.length) * 360 + (Math.random() * 24 - 12);
+    const r = 100 + Math.random() * 80;
+    const rad = angle * Math.PI / 180;
+    const s = p.size || 48;
+    const x = W / 2 + r * Math.cos(rad) - s / 2;
+    const y = H / 2 + r * Math.sin(rad) - s / 2;
+    const div = document.createElement('div');
+    div.className = 'bubble';
+    div.style.cssText = `left:${x}px;top:${y}px`;
+    div.innerHTML = `
+      <div class="tooltip">
+        <div class="t-track">${p.track}</div>
+        <div class="t-artist">${p.artist}</div>
+        <span class="t-genre">${p.genre}</span>
+      </div>
+      <div class="bubble-circle" style="width:${s}px;height:${s}px;background:${p.color}">${p.name[0]}</div>
+      <div class="bubble-name">${p.name}</div>`;
+    stage.appendChild(div);
+  });
+  document.getElementById('nearby-count').textContent = `${list.length} people listening nearby`;
+}
+
+function refreshListeners() {
+  toast('Scanning nearby...');
+  setTimeout(() => { placeBubbles(DEMO_NEARBY); toast('Updated!'); }, 1000);
+}
+
+async function initApp(token) {
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app-screen').style.display = 'flex';
+
+  const profile = await fetchJSON('https://api.spotify.com/v1/me', token);
+  if (profile?.display_name) {
+    document.getElementById('you-initial').textContent = profile.display_name[0].toUpperCase();
+  }
+
+  const track = await fetchJSON('https://api.spotify.com/v1/me/player/currently-playing', token);
+  if (track?.item) {
+    document.getElementById('now-playing-text').textContent =
+      `${track.item.name} — ${track.item.artists.map(a => a.name).join(', ')}`;
+  } else {
+    document.getElementById('now-playing-text').textContent = 'Nothing playing';
+  }
+
+  navigator.geolocation?.getCurrentPosition(
+    () => toast('Location found — scanning nearby', 2500),
+    () => toast('Location off — showing demo data', 3000)
+  );
+
+  setTimeout(() => placeBubbles(DEMO_NEARBY), 800);
+
+  setInterval(async () => {
+    const t = await fetchJSON('https://api.spotify.com/v1/me/player/currently-playing', token);
+    if (t?.item) {
+      document.getElementById('now-playing-text').textContent =
+        `${t.item.name} — ${t.item.artists.map(a => a.name).join(', ')}`;
+    }
+  }, 30000);
+}
+
+window.addEventListener('load', async () => {
+  const params = new URLSearchParams(window.location.search);
+  const code = params.get('code');
+  if (code) {
+    window.history.replaceState({}, '', REDIRECT_URI);
+    toast('Connecting to Spotify...', 3000);
+    const token = await exchangeCodeForToken(code);
+    if (token) initApp(token);
+    else toast('Auth failed — please try again');
+    return;
+  }
+  const stored = getStoredToken();
+  if (stored) initApp(stored);
+});
+</script>
+</body>
+</html>
